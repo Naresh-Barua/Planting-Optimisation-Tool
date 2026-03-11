@@ -107,8 +107,8 @@ jobs:
             else
               echo "Unassigning $ASSIGNEE from #$SUB_NUMBER"
               gh api --method DELETE \
-                repos/$REPO_OWNER/$REPO_NAME/issues/$SUB_NUMBER/assignees \
-                -f "assignees[]=$ASSIGNEE"
+              repos/$REPO_OWNER/$REPO_NAME/issues/$SUB_NUMBER/assignees \
+              --input - <<< "{\"assignees\": [\"$ASSIGNEE\"]}"
             fi
 
             # Update project board status
