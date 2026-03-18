@@ -76,6 +76,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 async def authenticate_user(
     db: AsyncSession, email: str, password: str
 ) -> Optional[User]:
+    email = email.strip().lower()
     """
     Authenticates a user by verifying email and password.
 

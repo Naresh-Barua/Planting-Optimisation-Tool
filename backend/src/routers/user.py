@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from typing import List
 
+from src.models import user
 from src.database import get_db_session
 from src.services.authentication import (
     require_role,
@@ -74,6 +75,8 @@ async def create_user(
             "role": "officer"
         }
     """
+    normalized_email = user.email.strip().lower()
+
     # Check if email already exists
     result = await db.execute(select(User).filter(User.email == user.email))
     db_user = result.scalar_one_or_none()
@@ -88,7 +91,7 @@ async def create_user(
 
     # Create new user
     db_user = User(
-        email=user.email,
+        email=normalized_email,
         name=user.name,
         hashed_password=hashed_password,
         role=user.role,
@@ -258,8 +261,23 @@ async def update_user(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
+    # Normalize incoming email
+    normalized_email = user.email.strip().lower()
+
+    # Check if another user already has this email
+    if normalized_email != db_user.email:
+        result = await db.execute(
+        select(User).filter(User.email == normalized_email, User.id != user_id)
+        )
+    existing_user = result.scalar_one_or_none()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered",
+            )
+    
     # Update user fields
-    db_user.email = user.email
+    db_user.email = normalized_email
     db_user.name = user.name
 
     # Only update password if a new one is provided

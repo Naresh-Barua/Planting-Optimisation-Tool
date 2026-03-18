@@ -19,7 +19,10 @@ __all__ = [
 class UserBase(BaseModel):
     email: EmailStr = Field(..., description="The user's unique email address.")
     name: str = Field(..., description="The user's full name.")
-
+    @field_validator("email")   
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        return v.strip().lower()
 
 # Used for registration (requires password input)
 class UserCreate(UserBase):
