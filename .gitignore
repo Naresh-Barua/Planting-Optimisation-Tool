@@ -44,4 +44,7 @@ tests/.pytest_cache/
 # Egg info
 *.egg-info/
 
-backend/src/keys/*
+
+# Intellij project files
+.idea
+
