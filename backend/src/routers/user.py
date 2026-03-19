@@ -16,7 +16,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-
 from src.database import get_db_session
 from src.models.user import User
 from src.schemas.user import Role, UserCreate, UserRead
@@ -258,9 +257,7 @@ async def update_user(
 
     # Check if another user already has this email
     if normalized_email != db_user.email:
-        result = await db.execute(
-            select(User).filter(User.email == normalized_email, User.id != user_id)
-        )
+        result = await db.execute(select(User).filter(User.email == normalized_email, User.id != user_id))
     existing_user = result.scalar_one_or_none()
     if existing_user:
         raise HTTPException(
