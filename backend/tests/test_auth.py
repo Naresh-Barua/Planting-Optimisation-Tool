@@ -22,7 +22,7 @@ async def test_register_user(async_client: AsyncClient, async_session: AsyncSess
         json={
             "email": "registration_test_user@test.com",
             "name": "Registration Test User",
-            "password": "newpassword",
+            "password": "Password1!",
             "role": "officer",
         },
     )
@@ -128,7 +128,7 @@ async def test_register_duplicate_email_fails(
         json={
             "email": "duplicate_test_user@test.com",
             "name": "Duplicate Test First User",
-            "password": "password123",
+            "password": "Password1!",
             "role": "officer",
         },
     )
@@ -140,7 +140,7 @@ async def test_register_duplicate_email_fails(
         json={
             "email": "duplicate_test_user@test.com",
             "name": "Duplicate Test Second User",
-            "password": "password456",
+            "password": "Password1!",
             "role": "officer",
         },
     )
@@ -189,7 +189,7 @@ async def test_register_password_minimum_length(async_client: AsyncClient):
         json={
             "email": "min_password_test@test.com",
             "name": "Minimum Password Test User",
-            "password": "pass1234",  # Exactly 8 characters
+            "password": "Pass123!",  # Exactly 8 characters
             "role": "officer",
         },
     )
@@ -197,6 +197,69 @@ async def test_register_password_minimum_length(async_client: AsyncClient):
     data = response.json()
     assert data["email"] == "min_password_test@test.com"
 
+async def test_register_password_missing_uppercase(async_client: AsyncClient):
+    response = await async_client.post(
+        "/auth/register",
+        json={
+            "email": "no_upper@test.com",
+            "name": "Test User",
+            "password": "password1!",
+            "role": "officer",
+        },
+    )
+    assert response.status_code == 422
+
+
+async def test_register_password_missing_lowercase(async_client: AsyncClient):
+    response = await async_client.post(
+        "/auth/register",
+        json={
+            "email": "no_lower@test.com",
+            "name": "Test User",
+            "password": "PASSWORD1!",
+            "role": "officer",
+        },
+    )
+    assert response.status_code == 422
+
+
+async def test_register_password_missing_number(async_client: AsyncClient):
+    response = await async_client.post(
+        "/auth/register",
+        json={
+            "email": "no_number@test.com",
+            "name": "Test User",
+            "password": "Password!",
+            "role": "officer",
+        },
+    )
+    assert response.status_code == 422
+
+
+async def test_register_password_missing_special(async_client: AsyncClient):
+    response = await async_client.post(
+        "/auth/register",
+        json={
+            "email": "no_special@test.com",
+            "name": "Test User",
+            "password": "Password1",
+            "role": "officer",
+        },
+    )
+    assert response.status_code == 422
+
+
+async def test_register_password_valid(async_client: AsyncClient):
+    response = await async_client.post(
+        "/auth/register",
+        json={
+            "email": "valid_password@test.com",
+            "name": "Valid User",
+            "password": "Password1!",
+            "role": "officer",
+        },
+    )
+    assert response.status_code == 200
 
 # ============================================================================
 # AUTHENTICATION FAILURE TESTS
