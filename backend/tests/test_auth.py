@@ -137,6 +137,7 @@ async def test_register_duplicate_email_fails(async_client: AsyncClient, async_s
     assert response2.status_code == 400
     assert "already registered" in response2.json()["detail"].lower()
 
+
 async def test_register_email_is_normalized_to_lowercase(async_client: AsyncClient):
     response = await async_client.post(
         "/auth/register",
@@ -192,6 +193,7 @@ async def test_register_unique_email_still_succeeds(async_client: AsyncClient):
     assert response.status_code == 200
     data = response.json()
     assert data["email"] == "differentcasecheck@gmail.com"
+
 
 # ============================================================================
 # PASSWORD VALIDATION TESTS
