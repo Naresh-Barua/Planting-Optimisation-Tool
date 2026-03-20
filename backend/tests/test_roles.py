@@ -352,9 +352,7 @@ async def test_create_user_password_too_short(async_client: AsyncClient, test_ad
     assert response.status_code == 422
 
 
-async def test_create_user_invalid_role(
-    async_client: AsyncClient, test_admin_user: User, admin_auth_headers: dict
-):
+async def test_create_user_invalid_role(async_client: AsyncClient, test_admin_user: User, admin_auth_headers: dict):
     response = await async_client.post(
         "/users/",
         json={
@@ -369,9 +367,7 @@ async def test_create_user_invalid_role(
     assert response.status_code == 422
 
 
-async def test_create_user_default_role(
-    async_client: AsyncClient, test_admin_user: User, admin_auth_headers: dict
-):
+async def test_create_user_default_role(async_client: AsyncClient, test_admin_user: User, admin_auth_headers: dict):
     response = await async_client.post(
         "/users/",
         json={
