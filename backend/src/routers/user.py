@@ -91,7 +91,7 @@ async def create_user(
         email=user.email,
         name=user.name,
         hashed_password=hashed_password,
-        role=user.role,
+        role=user.role.value,
     )
     db.add(db_user)
     await db.commit()
@@ -266,7 +266,7 @@ async def update_user(
     if user.password:
         db_user.hashed_password = get_password_hash(user.password)
 
-    db_user.role = user.role
+    db_user.role = user.role.value
 
     await db.commit()
     await db.refresh(db_user)
