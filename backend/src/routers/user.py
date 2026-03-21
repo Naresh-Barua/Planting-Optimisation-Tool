@@ -23,6 +23,7 @@ from src.services.authentication import (
     get_current_user,
     get_password_hash,
     log_audit_event,
+    require_ownership_or_admin,
     require_role,
 )
 
@@ -197,11 +198,7 @@ async def read_user(
     if db_user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    if current_user.role == "officer" and current_user.id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this user",
-        )
+    require_ownership_or_admin(current_user, user_id)
 
     return db_user
 
