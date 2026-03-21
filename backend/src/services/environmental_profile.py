@@ -1,9 +1,3 @@
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from src.models.boundaries import FarmBoundary
-
-# from src.models.farm import Farm
-from src.services.farm import get_farm_by_id
 from core.farm_profile import build_farm_profile
 from geoalchemy2.shape import to_shape
 from shapely.geometry import MultiPolygon, Polygon
@@ -11,15 +5,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.boundaries import FarmBoundary
-
-# from datascience.tests.test_ss_score import farms
+from src.services.farm import get_farm_by_id
 
 
 class EnvironmentalProfileService:
     @staticmethod
-    async def run_environmental_profile(
-        db: AsyncSession, farm_id: int, user_id: int, user_role: str
-    ):
+    async def run_environmental_profile(db: AsyncSession, farm_id: int, user_id: int, user_role: str):
         farms = await get_farm_by_id(
             db=db,
             farm_ids=[farm_id],

@@ -1,15 +1,13 @@
 import pytest
+from geoalchemy2.elements import WKTElement
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.dependencies import create_access_token
+from src.models.boundaries import FarmBoundary
 from src.models.farm import Farm
 from src.models.user import User
 from src.services.authentication import Role, get_password_hash
-from src.services.authentication import get_password_hash, Role
-from src.dependencies import create_access_token
-from src.models.boundaries import FarmBoundary
-from geoalchemy2.elements import WKTElement
 
 
 @pytest.mark.asyncio
@@ -111,9 +109,7 @@ async def test_profile_owner_access(
     await async_session.flush()
     await async_session.refresh(user_a)
 
-    access_token = create_access_token(
-        data={"sub": str(user_a.id), "role": user_a.role}
-    )
+    access_token = create_access_token(data={"sub": str(user_a.id), "role": user_a.role})
     auth_headers = {"Authorization": f"Bearer {access_token}"}
 
     farm_data = {
@@ -180,9 +176,7 @@ async def test_profile_blocks_non_owner(
     await async_session.refresh(user_a)
     await async_session.refresh(user_b)
 
-    access_token = create_access_token(
-        data={"sub": str(user_a.id), "role": user_a.role}
-    )
+    access_token = create_access_token(data={"sub": str(user_a.id), "role": user_a.role})
     auth_headers = {"Authorization": f"Bearer {access_token}"}
 
     farm_data = {

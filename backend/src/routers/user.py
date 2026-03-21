@@ -195,9 +195,7 @@ async def read_user(
     result = await db.execute(select(User).filter(User.id == user_id))
     db_user = result.scalar_one_or_none()
     if db_user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     if current_user.role == "officer" and current_user.id != user_id:
         raise HTTPException(
