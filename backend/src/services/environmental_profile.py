@@ -1,3 +1,9 @@
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from src.models.boundaries import FarmBoundary
+
+# from src.models.farm import Farm
+from src.services.farm import get_farm_by_id
 from core.farm_profile import build_farm_profile
 from geoalchemy2.shape import to_shape
 from shapely.geometry import MultiPolygon, Polygon
@@ -6,10 +12,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.boundaries import FarmBoundary
 
+# from datascience.tests.test_ss_score import farms
+
 
 class EnvironmentalProfileService:
     @staticmethod
-    async def run_environmental_profile(db: AsyncSession, farm_id: int):
+    async def run_environmental_profile(
+        db: AsyncSession, farm_id: int, user_id: int, user_role: str
+    ):
+        farms = await get_farm_by_id(
+            db=db,
+            farm_ids=[farm_id],
+            user_id=user_id,
+            user_role=user_role,
+        )
+
+        if not farms:
+            return None
+
         # Fetch the boundary data
         result = await db.execute(select(FarmBoundary).where(FarmBoundary.id == farm_id))
         boundary_record = result.scalar_one_or_none()
