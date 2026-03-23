@@ -252,21 +252,17 @@ async def update_user(
     if db_user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    # Normalize incoming email
-    normalized_email = user.email.strip().lower()
+    # Check for duplicate email only if the email is changing
+    if user.email != db_user.email:
+        result = await db.execute(select(User).filter(User.email == user.email, User.id != user_id))
+        existing_user = result.scalar_one_or_none()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered",
+            )
+        db_user.email = user.email
 
-    # Check if another user already has this email
-    if normalized_email != db_user.email:
-        result = await db.execute(select(User).filter(User.email == normalized_email, User.id != user_id))
-    existing_user = result.scalar_one_or_none()
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered",
-        )
-
-    # Update user fields
-    db_user.email = normalized_email
     db_user.name = user.name
 
     # Only update password if a new one is provided
