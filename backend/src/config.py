@@ -22,6 +22,15 @@ class Settings(BaseSettings):
     POSTGRES_PORT: str = Field(default="5432")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    smtp_host: str
+    smtp_port: int
+    smtp_username: str
+    smtp_password: str
+    smtp_from_email: str
+
+    email_verification_expiry_minutes: int = 10
+    password_reset_expiry_minutes: int = 10
+    frontend_base_url: str = "http://localhost:3000"
 
     model_config = SettingsConfigDict(
         env_file=".env",
