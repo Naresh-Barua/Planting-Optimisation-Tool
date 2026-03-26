@@ -4,27 +4,24 @@ Pure service functions for user authentication and audit logging.
 No FastAPI dependencies — these functions are called by routers or other services.
 """
 
-from typing import Optional
-import jwt
-import bcrypt
-import secrets
 import hashlib
+import secrets
+from datetime import datetime, timedelta, timezone
+from typing import Optional
+
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.src.models import user
-from src.models.audit_log import AuditLog
-from src.models.user import User
-from src.utils.security import verify_password
-from src.models.auth_token import AuthToken
-from src.schemas.user import TokenData, UserRead, Role
-from datetime import datetime, timedelta, timezone
-
-from src.database import get_db_session
 from src.config import settings
-from fastapi.security import OAuth2PasswordBearer
+from src.database import get_db_session
+from src.models.audit_log import AuditLog
+from src.models.auth_token import AuthToken
+from src.models.user import User
+from src.schemas.user import Role, TokenData, UserRead
+from src.utils.security import verify_password
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
@@ -49,6 +46,7 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> Opti
     if not verify_password(password, user.hashed_password):
         return None
 
+    
     if not user.is_verified:
         return None
 
@@ -203,7 +201,7 @@ async def require_role_async(required_role: Role):
     """
 
     async def role_checker(
-        current_user: UserRead = Depends(get_current_active_user),
+        current_user: UserRead = Depends(get_current_user),
     ) -> UserRead:
         """
         Inner async function that performs the role validation.
@@ -273,7 +271,7 @@ async def create_auth_token(
     raw_token = generate_raw_token()
     token_hash = hash_token(raw_token)
 
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)
+    expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=expires_minutes)
 
     db_token = AuthToken(
         user_id=user_id,
@@ -297,14 +295,14 @@ async def get_valid_token(db, token: str, token_type: str):
             AuthToken.token_hash == token_hash,
             AuthToken.token_type == token_type,
             AuthToken.used_at.is_(None),
-            AuthToken.expires_at > datetime.now(timezone.utc),
+            AuthToken.expires_at > datetime.now(timezone.utc).replace(tzinfo=None),
         )
     )
     return result.scalar_one_or_none()
 
 
 async def mark_token_used(db, token_obj: AuthToken):
-    token_obj.used_at = datetime.now(timezone.utc)
+    token_obj.used_at = datetime.now(timezone.utc).replace(tzinfo=None)
     
 
 async def invalidate_user_tokens(db, user_id: int, token_type: str):
@@ -317,7 +315,7 @@ async def invalidate_user_tokens(db, user_id: int, token_type: str):
     )
     tokens = result.scalars().all()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     for token in tokens:
         token.used_at = now
 

@@ -9,32 +9,32 @@ All endpoints use JWT tokens for stateless authentication.
 """
 
 from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.config import settings
 from src.database import get_db_session
-from src.dependencies import create_access_token, get_current_user, require_role
+from src.dependencies import create_access_token
 from src.models import User
 from src.schemas.farm import FarmRead
 from src.schemas.user import Role, Token, UserCreate, UserRead
 from src.services import authentication as authentication_service
 from src.services import farm as farm_service
-from src.services import user as user_service
 from src.services.authentication import (
-    authenticate_user,
     create_auth_token,
     get_current_user,
-    get_password_hash,
     get_valid_token,
     invalidate_user_tokens,
     mark_token_used,
     require_role,
 )
 from src.services.email_service import send_email
-from src.config import settings
+from src.utils.security import get_password_hash, validate_password
 
-from pydantic import BaseModel
 
 class VerifyEmailRequest(BaseModel):
     token: str
@@ -96,69 +96,45 @@ async def login_for_access_token(
 
 @router.post("/register")
 async def register_user(user: UserCreate, db: AsyncSession = Depends(get_db_session)):
-    """Register a new user account.
+    """Register a new user account and send a verification email."""
 
-    Creates a new user with the provided email, name, password, and role.
-    This is a public endpoint that allows self-registration.
+    normalized_email = user.email.strip().lower()
 
-    Args:
-        user: User creation data (email, name, password, role)
-        db: Database session
+    result = await db.execute(select(User).filter(User.email == normalized_email))
+    existing_user = result.scalar_one_or_none()
 
-    Returns:
-        UserRead: The created user (without password)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered",
+        )
 
-    Raises:
-        HTTPException: 400 if email is already registered
-
-    Note:
-        - Passwords are hashed before storage using bcrypt
-        - Default role is "officer" if not specified
-        - The password field is never returned in the response
-        - For production, you may want to restrict which roles can self-register
-          or require email verification
-
-    Example:
-        POST /auth/register
-        {
-            "email": "newuser@example.com",
-            "name": "John Doe",
-            "password": "securepassword123",
-            "role": "officer"
-        }
-    """
-    
-
-    # Hash the password before storing
     hashed_password = get_password_hash(user.password)
 
-    # Create new user
     db_user = User(
-        email=user.email,
+        email=normalized_email,
         name=user.name,
         hashed_password=hashed_password,
         role=user.role,
+        is_verified=False,
     )
     db.add(db_user)
     await db.commit()
     await db.refresh(db_user)
 
-    # Create verification token
     token = await create_auth_token(
-    db,
-    user_id=db_user.id,
-    token_type="email_verification",
-    expires_minutes=settings.email_verification_expiry_minutes,
+        db,
+        user_id=db_user.id,
+        token_type="email_verification",
+        expires_minutes=settings.email_verification_expiry_minutes,
     )
 
-    # Build verification link
     verification_link = f"{settings.frontend_base_url}/verify-email?token={token}"
 
-    # Send email
     send_email(
-    subject="Verify your account",
-    recipient=db_user.email,
-    body=f"Click this link to verify your account:\n{verification_link}",
+        subject="Verify your account",
+        recipient=db_user.email,
+        body=f"Click this link to verify your account:\n{verification_link}",
     )
 
     return {"message": "User registered. Verification email sent."}
@@ -316,6 +292,9 @@ async def reset_password(
             detail="User not found",
         )
 
+    
+
+    validate_password(request.new_password)
     user.hashed_password = get_password_hash(request.new_password)
 
     await mark_token_used(db, token_obj)

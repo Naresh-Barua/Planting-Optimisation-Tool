@@ -9,9 +9,10 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 
+from src.config import settings
+
 # --- Application Imports ---
-from src.config import Settings
-from src.database import get_db_session
+from src.database import Base, get_db_session
 from src.dependencies import create_access_token
 from src.main import app
 from src.models.soil_texture import SoilTexture
@@ -19,8 +20,7 @@ from src.models.user import User
 from src.schemas.user import Role
 from src.utils.security import get_password_hash
 
-settings = Settings()
-
+settings.TESTING = True  # Ensure testing mode is enabled for all tests
 
 # Event Loop
 @pytest.fixture(scope="session")
@@ -43,9 +43,15 @@ async def db_engine():
     await engine.dispose()
 
 
-# Database Setup Fixture
 @pytest.fixture(scope="session", autouse=True)
 async def setup_database(db_engine):
+    """Rebuild the test schema from models before tests run."""
+    async with db_engine.begin() as conn:
+        await conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS postgis")
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS postgis")
+        await conn.run_sync(Base.metadata.create_all)
+
     yield
 
 
@@ -97,6 +103,7 @@ async def test_admin_user(async_session: AsyncSession) -> User:
         email="admin@test.com",
         hashed_password=get_password_hash("adminpassword"),
         role=Role.ADMIN.value,
+        is_verified=True,
     )
     user = await async_session.merge(user)
     await async_session.flush()
@@ -112,6 +119,7 @@ async def test_supervisor_user(async_session: AsyncSession) -> User:
         email="supervisor@test.com",
         hashed_password=get_password_hash("supervisorpassword"),
         role=Role.SUPERVISOR.value,
+        is_verified=True,
     )
     user = await async_session.merge(user)
     await async_session.flush()
@@ -127,6 +135,7 @@ async def test_officer_user(async_session: AsyncSession) -> User:
         email="officer@test.com",
         hashed_password=get_password_hash("officerpassword"),
         role=Role.OFFICER.value,
+        is_verified=True,
     )
     user = await async_session.merge(user)
     await async_session.flush()

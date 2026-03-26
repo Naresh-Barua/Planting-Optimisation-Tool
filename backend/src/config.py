@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     smtp_username: str
     smtp_password: str
     smtp_from_email: str
+    TESTING: bool = False
 
     email_verification_expiry_minutes: int = 10
     password_reset_expiry_minutes: int = 10

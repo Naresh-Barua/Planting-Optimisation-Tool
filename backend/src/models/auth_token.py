@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
-from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship
 
 from ..database import Base
 
@@ -21,6 +22,6 @@ class AuthToken(Base):
 
     used_at = Column(DateTime, nullable=True)
 
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     user = relationship("User")

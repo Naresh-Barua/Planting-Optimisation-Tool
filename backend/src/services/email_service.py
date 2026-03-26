@@ -5,6 +5,9 @@ from src.config import settings
 
 
 def send_email(subject: str, recipient: str, body: str) -> None:
+    if settings.TESTING:
+        return
+
     message = EmailMessage()
     message["Subject"] = subject
     message["From"] = settings.smtp_from_email

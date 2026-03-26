@@ -27,17 +27,16 @@ async def test_register_user(async_client: AsyncClient, async_session: AsyncSess
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["email"] == "registration_test_user@test.com"
-    assert data["name"] == "Registration Test User"
-    assert "id" in data
-    assert "password" not in data  # Password should never be returned
-    assert data["role"] == "officer"
+    assert data["message"] == "User registered. Verification email sent."
+    
 
     # Verify the user was actually created in the database
     result = await async_session.execute(select(User).filter(User.email == "registration_test_user@test.com"))
     db_user = result.scalar_one_or_none()
     assert db_user is not None
     assert db_user.name == "Registration Test User"
+    assert db_user.email == "registration_test_user@test.com"
+    assert db_user.is_verified is False
 
 
 async def test_login_for_access_token(async_client: AsyncClient, test_admin_user: User):
@@ -151,7 +150,9 @@ async def test_register_email_is_normalized_to_lowercase(async_client: AsyncClie
 
     assert response.status_code == 200
     data = response.json()
-    assert data["email"] == "casetest@gmail.com"
+    assert data["message"] == "User registered. Verification email sent."
+
+    
 
 
 async def test_register_duplicate_email_different_case_fails(async_client: AsyncClient):
@@ -192,7 +193,7 @@ async def test_register_unique_email_still_succeeds(async_client: AsyncClient):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["email"] == "differentcasecheck@gmail.com"
+    assert data["message"] == "User registered. Verification email sent."
 
 
 # ============================================================================
@@ -239,7 +240,7 @@ async def test_register_password_minimum_length(async_client: AsyncClient):
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["email"] == "min_password_test@test.com"
+    assert data["message"] == "User registered. Verification email sent."
 
 
 # ============================================================================
