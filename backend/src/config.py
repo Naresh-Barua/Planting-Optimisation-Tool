@@ -22,11 +22,11 @@ class Settings(BaseSettings):
     POSTGRES_PORT: str = Field(default="5432")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
-    smtp_host: str
-    smtp_port: int
-    smtp_username: str
-    smtp_password: str
-    smtp_from_email: str
+    smtp_host: str = "localhost"
+    smtp_port: int = 1025
+    smtp_username: str = "test"
+    smtp_password: str = "test"
+    smtp_from_email: str = "test@example.com"
     TESTING: bool = False
 
     email_verification_expiry_minutes: int = 10
