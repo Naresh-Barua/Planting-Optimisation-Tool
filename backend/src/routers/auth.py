@@ -12,6 +12,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from src.database import get_db_session
 from src.dependencies import create_access_token, get_current_user, require_role
 from src.models import User
@@ -20,7 +21,6 @@ from src.schemas.user import Role, Token, UserCreate, UserRead
 from src.services import authentication as authentication_service
 from src.services import farm as farm_service
 from src.services import user as user_service
-from src.dependencies import create_access_token  # Use the timezone-aware version
 from src.services.authentication import (
     authenticate_user,
     create_auth_token,
@@ -31,8 +31,6 @@ from src.services.authentication import (
     mark_token_used,
     require_role,
 )
-from src.models import User
-from src.schemas.user import Role, Token, UserRead, UserCreate
 from src.services.email_service import send_email
 from src.config import settings
 

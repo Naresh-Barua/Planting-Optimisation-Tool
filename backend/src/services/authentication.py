@@ -14,6 +14,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+from backend.src.models import user
 from src.models.audit_log import AuditLog
 from src.models.user import User
 from src.utils.security import verify_password
@@ -21,6 +22,11 @@ from src.models.auth_token import AuthToken
 from src.schemas.user import TokenData, UserRead, Role
 from datetime import datetime, timedelta, timezone
 
+from src.database import get_db_session
+from src.config import settings
+from fastapi.security import OAuth2PasswordBearer
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 async def authenticate_user(db: AsyncSession, email: str, password: str) -> Optional[User]:
     """Authenticates a user by verifying email and password.
@@ -43,10 +49,9 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> Opti
     if not verify_password(password, user.hashed_password):
         return None
 
-    return user
-
     if not user.is_verified:
         return None
+
     return user
 
 async def get_current_user(
