@@ -25,6 +25,7 @@ from src.utils.security import verify_password
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
+
 async def authenticate_user(db: AsyncSession, email: str, password: str) -> Optional[User]:
     """Authenticates a user by verifying email and password.
 
@@ -46,15 +47,13 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> Opti
     if not verify_password(password, user.hashed_password):
         return None
 
-    
     if not user.is_verified:
         return None
 
     return user
 
-async def get_current_user(
-    token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db_session)
-) -> User:
+
+async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db_session)) -> User:
     """
     FastAPI dependency to extract and validate the current user from a JWT token.
 
@@ -80,9 +79,7 @@ async def get_current_user(
     )
     try:
         # Decode and validate the JWT token
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
-        )
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id: int = payload.get("sub")
         if user_id is None:
             raise credentials_exception
@@ -230,7 +227,6 @@ async def require_role_async(required_role: Role):
     return role_checker
 
 
-
 async def log_audit_event(
     db: AsyncSession,
     user_id: int,
@@ -253,6 +249,7 @@ async def log_audit_event(
 # =========================
 # TOKEN HELPERS
 # =========================
+
 
 def generate_raw_token() -> str:
     return secrets.token_urlsafe(32)
@@ -303,7 +300,7 @@ async def get_valid_token(db, token: str, token_type: str):
 
 async def mark_token_used(db, token_obj: AuthToken):
     token_obj.used_at = datetime.now(timezone.utc).replace(tzinfo=None)
-    
+
 
 async def invalidate_user_tokens(db, user_id: int, token_type: str):
     result = await db.execute(
@@ -318,5 +315,3 @@ async def invalidate_user_tokens(db, user_id: int, token_type: str):
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     for token in tokens:
         token.used_at = now
-
-    

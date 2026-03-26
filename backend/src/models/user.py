@@ -61,7 +61,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
     is_verified: Mapped[bool] = mapped_column(default=False, nullable=False)
-    
+
     # Authorization - role determines user's permission level
     role: Mapped[str] = mapped_column(String(50), index=True, default="officer")
 

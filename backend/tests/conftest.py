@@ -22,6 +22,7 @@ from src.utils.security import get_password_hash
 
 settings.TESTING = True  # Ensure testing mode is enabled for all tests
 
+
 # Event Loop
 @pytest.fixture(scope="session")
 def event_loop():

@@ -28,7 +28,6 @@ async def test_register_user(async_client: AsyncClient, async_session: AsyncSess
     assert response.status_code == 200
     data = response.json()
     assert data["message"] == "User registered. Verification email sent."
-    
 
     # Verify the user was actually created in the database
     result = await async_session.execute(select(User).filter(User.email == "registration_test_user@test.com"))
@@ -151,8 +150,6 @@ async def test_register_email_is_normalized_to_lowercase(async_client: AsyncClie
     assert response.status_code == 200
     data = response.json()
     assert data["message"] == "User registered. Verification email sent."
-
-    
 
 
 async def test_register_duplicate_email_different_case_fails(async_client: AsyncClient):

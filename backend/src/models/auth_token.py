@@ -15,7 +15,7 @@ class AuthToken(Base):
 
     token_hash = Column(String, nullable=False, index=True)
 
-    token_type = Column(String, nullable=False)  
+    token_type = Column(String, nullable=False)
     # "email_verification" or "password_reset"
 
     expires_at = Column(DateTime, nullable=False)

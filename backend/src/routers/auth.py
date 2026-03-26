@@ -39,6 +39,7 @@ from src.utils.security import get_password_hash, validate_password
 class VerifyEmailRequest(BaseModel):
     token: str
 
+
 class ForgotPasswordRequest(BaseModel):
     email: str
 
@@ -46,6 +47,7 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
+
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -261,9 +263,7 @@ async def forgot_password(
             body=f"Click this link to reset your password:\n{reset_link}",
         )
 
-    return {
-        "message": "If an account with that email exists, a password reset email has been sent."
-    }
+    return {"message": "If an account with that email exists, a password reset email has been sent."}
 
 
 @router.post("/reset-password")
@@ -291,8 +291,6 @@ async def reset_password(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-
-    
 
     validate_password(request.new_password)
     user.hashed_password = get_password_hash(request.new_password)
