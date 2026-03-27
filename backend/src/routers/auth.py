@@ -26,11 +26,9 @@ from src.services import authentication as authentication_service
 from src.services import farm as farm_service
 from src.services.authentication import (
     create_auth_token,
-    get_current_user,
     get_valid_token,
     invalidate_user_tokens,
     mark_token_used,
-    require_role,
 )
 from src.services.email_service import send_email
 from src.utils.security import get_password_hash, validate_password
@@ -98,10 +96,10 @@ async def login_for_access_token(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.post("/register", response_model=UserRead)
+@router.post("/register")
 @limiter.limit("10/minute")
 async def register_user(request: Request, user: UserCreate, db: AsyncSession = Depends(get_db_session)):
-    """Register a new user account.
+    """Register a new user account."""
 
     normalized_email = user.email.strip().lower()
 
