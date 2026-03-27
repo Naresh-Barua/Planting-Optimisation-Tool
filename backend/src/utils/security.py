@@ -33,3 +33,7 @@ def validate_password(password: str) -> None:
 
     if not re.search(r"[0-9]", password):
         raise ValueError("Password must contain at least one number")
+    
+    special_characters = r"!@#$%^&*()_+-=[]{}|;:',.<>/?`~\"\\"
+    if not any(char in special_characters for char in password):
+        raise ValueError("Password must contain at least one special character")

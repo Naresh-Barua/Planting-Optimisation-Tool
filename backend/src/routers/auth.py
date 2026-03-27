@@ -178,26 +178,28 @@ async def read_own_items(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(require_role(Role.OFFICER)),
 ):
-    """
-    Example endpoint demonstrating admin-only access.
+        """Returns all farms associated with the currently authenticated user.
 
-    This is a placeholder endpoint showing how to restrict access to admin users only.
-    In production, replace with actual business logic.
+    Example endpoint demonstrating officer-or-above access.
+
+    This is a placeholder endpoint showing how to restrict access to users
+    with the OFFICER role (or higher). In production, replace with actual
+    business logic.
 
     Args:
-        current_user: Authenticated admin user
+        current_user: Authenticated user with role OFFICER or higher
 
     Returns:
-        List of items owned by the current admin user
+        List of items owned by the current user
 
     Requires:
-        Valid JWT token with admin role
+        Valid JWT token with role OFFICER or higher
 
     Note:
-        This endpoint is restricted to admins only. Officers and supervisors
-        will receive a 403 Forbidden response.
+        This endpoint is restricted to users with role OFFICER or higher.
+        Users with lower privileges will receive a 403 Forbidden response.
     """
-    return await farm_service.list_farms_by_user(db, current_user.id)
+        return await farm_service.list_farms_by_user(db, current_user.id)
 
 
 @router.post("/verify-email")

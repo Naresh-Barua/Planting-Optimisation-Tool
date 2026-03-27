@@ -1,9 +1,14 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from src.models.auth_token import AuthToken
 from src.models.user import User
+from src.services.authentication import create_auth_token, hash_token
+from src.utils.security import verify_password
 
 pytestmark = pytest.mark.asyncio
 
@@ -266,3 +271,156 @@ async def test_access_protected_endpoint_with_invalid_token(async_client: AsyncC
     headers = {"Authorization": "Bearer invalid_token_here"}
     response = await async_client.get("/users/", headers=headers)
     assert response.status_code == 401
+
+
+# ============================================================================
+# EMAIL VERIFICATION + PASSWORD RESET TESTS
+# ============================================================================
+
+
+async def test_verify_email_success(async_client: AsyncClient, async_session: AsyncSession):
+    """Test successful email verification.
+
+    Verifies that:
+    - A valid verification token can verify the user
+    - The user is marked as verified in the database
+    - The verification token is marked as used
+    """
+    response = await async_client.post(
+        "/auth/register",
+        json={
+            "email": "verify_me@test.com",
+            "name": "Verify Me",
+            "password": "Password1!",
+            "role": "officer",
+        },
+    )
+    assert response.status_code == 200
+
+    result = await async_session.execute(select(User).filter(User.email == "verify_me@test.com"))
+    user = result.scalar_one()
+    assert user.is_verified is False
+
+    raw_token = await create_auth_token(
+        async_session,
+        user_id=user.id,
+        token_type="email_verification",
+    )
+
+    response = await async_client.post(
+        "/auth/verify-email",
+        json={"token": raw_token},
+    )
+    assert response.status_code == 200
+
+    result = await async_session.execute(select(User).filter(User.id == user.id))
+    verified_user = result.scalar_one()
+    assert verified_user.is_verified is True
+
+    result = await async_session.execute(
+    select(AuthToken).filter(
+        AuthToken.user_id == user.id,
+        AuthToken.token_type == "email_verification",
+        AuthToken.token_hash == hash_token(raw_token),
+        )
+    )
+    token_obj = result.scalar_one()
+    assert token_obj.used_at is not None
+
+
+async def test_verify_email_invalid_token_fails(async_client: AsyncClient):
+    """Test that email verification fails for an invalid token."""
+    response = await async_client.post(
+        "/auth/verify-email",
+        json={"token": "invalid-token"},
+    )
+    assert response.status_code == 400
+    assert "invalid" in response.json()["detail"].lower()
+
+
+async def test_forgot_password_email_is_normalized(async_client: AsyncClient):
+    """Test forgot-password accepts normalized email input."""
+    response = await async_client.post(
+        "/auth/forgot-password",
+        json={"email": "  ADMIN@Test.com  "},
+    )
+    assert response.status_code == 200
+
+
+async def test_reset_password_success_and_token_single_use(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    test_admin_user: User,
+):
+    """Test successful password reset and single-use token behavior.
+
+    Verifies that:
+    - A valid reset token updates the user's password
+    - The reset token is marked as used
+    - The same token cannot be reused
+    """
+    raw_token = await create_auth_token(
+        async_session,
+        user_id=test_admin_user.id,
+        token_type="password_reset",
+    )
+
+    response = await async_client.post(
+        "/auth/reset-password",
+        json={
+            "token": raw_token,
+            "new_password": "NewPassword1!",
+        },
+    )
+    assert response.status_code == 200
+
+    result = await async_session.execute(select(User).filter(User.id == test_admin_user.id))
+    updated_user = result.scalar_one()
+    assert verify_password("NewPassword1!", updated_user.hashed_password)
+
+    result = await async_session.execute(
+        select(AuthToken).filter(
+            AuthToken.user_id == test_admin_user.id,
+            AuthToken.token_type == "password_reset",
+        )
+    )
+    token_obj = result.scalar_one()
+    assert token_obj.used_at is not None
+
+    reuse_response = await async_client.post(
+        "/auth/reset-password",
+        json={
+            "token": raw_token,
+            "new_password": "AnotherPass1!",
+        },
+    )
+    assert reuse_response.status_code == 400
+    assert "invalid" in reuse_response.json()["detail"].lower()
+
+
+async def test_reset_password_expired_token_fails(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    test_admin_user: User,
+):
+    """Test that reset-password fails for an expired token."""
+    raw_token = "expired-reset-token"
+
+    expired_token = AuthToken(
+        user_id=test_admin_user.id,
+        token_hash=hash_token(raw_token),
+        token_type="password_reset",
+        expires_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1),
+    )
+    async_session.add(expired_token)
+    await async_session.commit()
+
+    response = await async_client.post(
+        "/auth/reset-password",
+        json={
+            "token": raw_token,
+            "new_password": "ExpiredPass1!",
+        },
+    )
+    assert response.status_code == 400
+    assert "expired" in response.json()["detail"].lower() or "invalid" in response.json()["detail"].lower()

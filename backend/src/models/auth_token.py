@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
-from ..database import Base
+from src.database import Base
 
 
 class AuthToken(Base):
@@ -18,10 +18,8 @@ class AuthToken(Base):
     token_type = Column(String, nullable=False)
     # "email_verification" or "password_reset"
 
-    expires_at = Column(DateTime, nullable=False)
-
-    used_at = Column(DateTime, nullable=True)
-
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User")

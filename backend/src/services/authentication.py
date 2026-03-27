@@ -1,7 +1,11 @@
 """Authentication Service
 
-Pure service functions for user authentication and audit logging.
-No FastAPI dependencies — these functions are called by routers or other services.
+Service functions for user authentication, authorization, and audit logging.
+
+Note:
+This module includes FastAPI dependencies (e.g., Depends, OAuth2PasswordBearer)
+for authentication and role-based access control. These functions are used
+directly in route handlers.
 """
 
 import hashlib
