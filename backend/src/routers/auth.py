@@ -178,7 +178,7 @@ async def read_own_items(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(require_role(Role.OFFICER)),
 ):
-        """Returns all farms associated with the currently authenticated user.
+    """Returns all farms associated with the currently authenticated user.
 
     Example endpoint demonstrating officer-or-above access.
 
@@ -199,7 +199,7 @@ async def read_own_items(
         This endpoint is restricted to users with role OFFICER or higher.
         Users with lower privileges will receive a 403 Forbidden response.
     """
-        return await farm_service.list_farms_by_user(db, current_user.id)
+    return await farm_service.list_farms_by_user(db, current_user.id)
 
 
 @router.post("/verify-email")

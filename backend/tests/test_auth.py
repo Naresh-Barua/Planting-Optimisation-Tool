@@ -318,10 +318,10 @@ async def test_verify_email_success(async_client: AsyncClient, async_session: As
     assert verified_user.is_verified is True
 
     result = await async_session.execute(
-    select(AuthToken).filter(
-        AuthToken.user_id == user.id,
-        AuthToken.token_type == "email_verification",
-        AuthToken.token_hash == hash_token(raw_token),
+        select(AuthToken).filter(
+            AuthToken.user_id == user.id,
+            AuthToken.token_type == "email_verification",
+            AuthToken.token_hash == hash_token(raw_token),
         )
     )
     token_obj = result.scalar_one()
