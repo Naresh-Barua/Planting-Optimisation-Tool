@@ -12,7 +12,6 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +19,7 @@ from src.config import settings
 from src.database import get_db_session
 from src.dependencies import create_access_token, get_current_user, limiter, require_role
 from src.models import User
+from src.schemas.auth import ForgotPasswordRequest, ResetPasswordRequest, VerifyEmailRequest
 from src.schemas.farm import FarmRead
 from src.schemas.user import Role, Token, UserCreate, UserRead
 from src.services import authentication as authentication_service
@@ -32,20 +32,6 @@ from src.services.authentication import (
 )
 from src.services.email_service import send_email
 from src.utils.security import get_password_hash, validate_password
-
-
-class VerifyEmailRequest(BaseModel):
-    token: str
-
-
-class ForgotPasswordRequest(BaseModel):
-    email: str
-
-
-class ResetPasswordRequest(BaseModel):
-    token: str
-    new_password: str
-
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -84,7 +70,10 @@ async def login_for_access_token(
             "token_type": "bearer"
         }
     """
-    user = await authentication_service.authenticate_user(db, email=form_data.username, password=form_data.password)
+    try:
+        user = await authentication_service.authenticate_user(db, email=form_data.username, password=form_data.password)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -134,7 +123,7 @@ async def register_user(request: Request, user: UserCreate, db: AsyncSession = D
 
     verification_link = f"{settings.frontend_base_url}/verify-email?token={token}"
 
-    send_email(
+    await send_email(
         subject="Verify your account",
         recipient=db_user.email,
         body=f"Click this link to verify your account:\n{verification_link}",
@@ -245,7 +234,8 @@ async def forgot_password(
     request: ForgotPasswordRequest,
     db: AsyncSession = Depends(get_db_session),
 ):
-    result = await db.execute(select(User).filter(User.email == request.email))
+    normalized_email = request.email.strip().lower()
+    result = await db.execute(select(User).filter(User.email == normalized_email))
     user = result.scalar_one_or_none()
 
     if user:
@@ -260,7 +250,7 @@ async def forgot_password(
 
         reset_link = f"{settings.frontend_base_url}/reset-password?token={token}"
 
-        send_email(
+        await send_email(
             subject="Reset your password",
             recipient=user.email,
             body=f"Click this link to reset your password:\n{reset_link}",

@@ -37,7 +37,9 @@ def upgrade() -> None:
     op.add_column(
     'users',
     sa.Column('is_verified', sa.Boolean(), nullable=False, server_default=sa.false()),
-)
+    )
+    # Set all existing users as verified before removing the server default
+    op.execute("UPDATE users SET is_verified = TRUE")
     op.alter_column('users', 'is_verified', server_default=None)
     # ### end Alembic commands ###
 

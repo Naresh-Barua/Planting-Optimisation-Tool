@@ -1,11 +1,6 @@
 """Authentication Service
 
 Service functions for user authentication, authorization, and audit logging.
-
-Note:
-This module includes FastAPI dependencies (e.g., Depends, OAuth2PasswordBearer)
-for authentication and role-based access control. These functions are used
-directly in route handlers.
 """
 
 import hashlib
@@ -13,21 +8,13 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-import jwt
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.config import settings
-from src.database import get_db_session
 from src.models.audit_log import AuditLog
 from src.models.auth_token import AuthToken
 from src.models.user import User
-from src.schemas.user import Role, TokenData, UserRead
 from src.utils.security import verify_password
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 
 async def authenticate_user(db: AsyncSession, email: str, password: str) -> Optional[User]:
@@ -52,183 +39,9 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> Opti
         return None
 
     if not user.is_verified:
-        return None
+        raise ValueError("Email address has not been verified")
 
     return user
-
-
-async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db_session)) -> User:
-    """
-    FastAPI dependency to extract and validate the current user from a JWT token.
-
-    Args:
-        token: JWT token extracted from the Authorization header by oauth2_scheme
-        db: Async database session
-
-    Returns:
-        User: The authenticated user object from the database
-
-    Raises:
-        HTTPException: 401 Unauthorized if token is invalid, expired, or user not found
-
-    Note:
-        This dependency is used in route handlers to ensure the request is authenticated.
-        It decodes the JWT, extracts the user ID from the 'sub' claim, and retrieves
-        the user from the database.
-    """
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        # Decode and validate the JWT token
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user_id: int = payload.get("sub")
-        if user_id is None:
-            raise credentials_exception
-        token_data = TokenData(id=user_id)
-    except jwt.PyJWTError:
-        # Token is invalid, expired, or malformed
-        raise credentials_exception
-
-    # Retrieve user from database
-    result = await db.execute(select(User).filter(User.id == token_data.id))
-    user = result.scalar_one_or_none()
-
-    if user is None:
-        # User ID in token doesn't exist in database (user was deleted?)
-        raise credentials_exception
-    return user
-
-
-# Role hierarchy mapping: defines permission levels for each role
-# Higher numbers indicate greater permissions
-# This enables hierarchical access control where higher-level roles
-# automatically have all permissions of lower-level roles
-#
-# Hierarchy explanation:
-# - OFFICER (1): Entry-level user with basic permissions
-# - SUPERVISOR (2): Can view/manage users and has all officer permissions
-# - ADMIN (3): Full system access, can perform all operations
-role_hierarchy = {
-    "officer": 1,
-    "supervisor": 2,
-    "admin": 3,
-}
-
-
-def require_role(required_role: Role):
-    """
-    FastAPI dependency factory for role-based access control.
-
-    This function creates a dependency that checks if the authenticated user
-    has sufficient permissions (role level) to access a protected endpoint.
-
-    Args:
-        required_role: The minimum role required to access the endpoint
-
-    Returns:
-        A dependency function that performs the role check
-
-    Usage:
-        @router.get("/admin-only")
-        async def admin_endpoint(user: User = Depends(require_role(Role.ADMIN))):
-            # Only admins can access this endpoint
-            pass
-
-        @router.get("/supervisor-and-above")
-        async def supervisor_endpoint(user: User = Depends(require_role(Role.SUPERVISOR))):
-            # Supervisors and admins can access this endpoint
-            pass
-
-    Note:
-        Uses hierarchical role checking: users with higher roles automatically
-        have permissions of lower roles (e.g., admin can access supervisor endpoints).
-
-    Raises:
-        HTTPException: 403 Forbidden if user's role level is below required level
-    """
-
-    def role_checker(
-        current_user: User = Depends(get_current_user),
-    ) -> User:
-        """
-        Inner function that performs the actual role validation.
-
-        Args:
-            current_user: The authenticated user (injected by get_current_user dependency)
-
-        Returns:
-            User: The current user if they have sufficient permissions
-
-        Raises:
-            HTTPException: 403 Forbidden if permissions are insufficient
-        """
-        # Get numeric permission levels from hierarchy
-        user_role_level = role_hierarchy.get(current_user.role, 0)
-        required_role_level = role_hierarchy.get(required_role.value, 0)
-
-        # Check if user's role level meets or exceeds the requirement
-        if user_role_level < required_role_level:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="The user does not have adequate permissions.",
-            )
-        return current_user
-
-    return role_checker
-
-
-async def require_role_async(required_role: Role):
-    """
-    Async version of require_role for compatibility with async dependencies.
-
-    This function provides the same role-based access control as require_role
-    but works with the async get_current_active_user dependency.
-
-    Args:
-        required_role: The minimum role required to access the endpoint
-
-    Returns:
-        An async dependency function that performs the role check
-
-    Note:
-        This is used when you need to work with UserRead schemas instead of
-        User models, typically in routes that need the async dependency chain.
-
-    Raises:
-        HTTPException: 403 Forbidden if user's role level is below required level
-    """
-
-    async def role_checker(
-        current_user: UserRead = Depends(get_current_user),
-    ) -> UserRead:
-        """
-        Inner async function that performs the role validation.
-
-        Args:
-            current_user: The authenticated user as UserRead schema
-
-        Returns:
-            UserRead: The current user if they have sufficient permissions
-
-        Raises:
-            HTTPException: 403 Forbidden if permissions are insufficient
-        """
-        # Get numeric permission levels from hierarchy
-        user_role_level = role_hierarchy.get(current_user.role, 0)
-        required_role_level = role_hierarchy.get(required_role.value, 0)
-
-        # Check if user's role level meets or exceeds the requirement
-        if user_role_level < required_role_level:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="The user does not have adequate permissions.",
-            )
-        return current_user
-
-    return role_checker
 
 
 async def log_audit_event(
@@ -272,7 +85,7 @@ async def create_auth_token(
     raw_token = generate_raw_token()
     token_hash = hash_token(raw_token)
 
-    expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=expires_minutes)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)
 
     db_token = AuthToken(
         user_id=user_id,
@@ -296,14 +109,14 @@ async def get_valid_token(db, token: str, token_type: str):
             AuthToken.token_hash == token_hash,
             AuthToken.token_type == token_type,
             AuthToken.used_at.is_(None),
-            AuthToken.expires_at > datetime.now(timezone.utc).replace(tzinfo=None),
+            AuthToken.expires_at > datetime.now(timezone.utc),
         )
     )
     return result.scalar_one_or_none()
 
 
 async def mark_token_used(db, token_obj: AuthToken):
-    token_obj.used_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    token_obj.used_at = datetime.now(timezone.utc)
 
 
 async def invalidate_user_tokens(db, user_id: int, token_type: str):
@@ -316,6 +129,6 @@ async def invalidate_user_tokens(db, user_id: int, token_type: str):
     )
     tokens = result.scalars().all()
 
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
     for token in tokens:
         token.used_at = now

@@ -9,18 +9,14 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 
-from src.config import settings
-
 # --- Application Imports ---
-from src.database import Base, get_db_session
-from src.dependencies import create_access_token
+from src.database import get_db_session
+from src.dependencies import create_access_token, limiter
 from src.main import app
 from src.models.soil_texture import SoilTexture
 from src.models.user import User
 from src.schemas.user import Role
 from src.utils.security import get_password_hash
-
-settings.TESTING = True  # Ensure testing mode is enabled for all tests
 
 
 # Event Loop
@@ -31,6 +27,12 @@ def event_loop():
     loop = policy.new_event_loop()
     yield loop
     loop.close()
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limiter():
+    """Reset the rate limiter before each test so accumulated counts from one test do not affect the next."""
+    limiter.reset()
 
 
 # Database Engine
@@ -46,13 +48,6 @@ async def db_engine():
 
 @pytest.fixture(scope="session", autouse=True)
 async def setup_database(db_engine):
-    """Rebuild the test schema from models before tests run."""
-    async with db_engine.begin() as conn:
-        await conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS postgis")
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS postgis")
-        await conn.run_sync(Base.metadata.create_all)
-
     yield
 
 

@@ -87,6 +87,56 @@ async def test_login_wrong_username(async_client: AsyncClient, test_admin_user: 
     assert response.status_code == 401
 
 
+async def test_login_unverified_correct_password_returns_403(async_client: AsyncClient):
+    """Test that login with correct credentials but unverified account returns 403.
+
+    Verifies that:
+    - An unverified user cannot log in even with correct credentials
+    - The response is 403 (not 401) to distinguish from wrong credentials
+    - The error message indicates the account is not verified
+    """
+    await async_client.post(
+        "/auth/register",
+        json={
+            "email": "unverified_correct@test.com",
+            "name": "Unverified Correct Password",
+            "password": "Password1!",
+            "role": "officer",
+        },
+    )
+
+    response = await async_client.post(
+        "/auth/token",
+        data={"username": "unverified_correct@test.com", "password": "Password1!"},
+    )
+    assert response.status_code == 403
+    assert "verified" in response.json()["detail"].lower()
+
+
+async def test_login_unverified_wrong_password_returns_401(async_client: AsyncClient):
+    """Test that login with wrong credentials on an unverified account returns 401.
+
+    Verifies that:
+    - Wrong password returns 401 regardless of verification status
+    - The unverified error (403) is not leaked when the password is incorrect
+    """
+    await async_client.post(
+        "/auth/register",
+        json={
+            "email": "unverified_wrong@test.com",
+            "name": "Unverified Wrong Password",
+            "password": "Password1!",
+            "role": "officer",
+        },
+    )
+
+    response = await async_client.post(
+        "/auth/token",
+        data={"username": "unverified_wrong@test.com", "password": "wrongpassword"},
+    )
+    assert response.status_code == 401
+
+
 async def test_get_current_user(async_client: AsyncClient, admin_auth_headers: dict):
     """Test retrieving current user information via /auth/users/me.
 
@@ -139,6 +189,36 @@ async def test_register_duplicate_email_fails(async_client: AsyncClient, async_s
     )
     assert response2.status_code == 400
     assert "already registered" in response2.json()["detail"].lower()
+
+
+async def test_register_duplicate_name_succeeds(async_client: AsyncClient):
+    """Test that two users can register with the same name.
+
+    Verifies that:
+    - Name is not a unique identifier — email is
+    - Duplicate names are permitted as long as emails differ
+    """
+    response1 = await async_client.post(
+        "/auth/register",
+        json={
+            "email": "same_name_first@test.com",
+            "name": "John Smith",
+            "password": "Password1!",
+            "role": "officer",
+        },
+    )
+    assert response1.status_code == 200
+
+    response2 = await async_client.post(
+        "/auth/register",
+        json={
+            "email": "same_name_second@test.com",
+            "name": "John Smith",
+            "password": "Password1!",
+            "role": "officer",
+        },
+    )
+    assert response2.status_code == 200
 
 
 async def test_register_email_is_normalized_to_lowercase(async_client: AsyncClient):
@@ -410,7 +490,7 @@ async def test_reset_password_expired_token_fails(
         user_id=test_admin_user.id,
         token_hash=hash_token(raw_token),
         token_type="password_reset",
-        expires_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1),
+        expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
     )
     async_session.add(expired_token)
     await async_session.commit()
