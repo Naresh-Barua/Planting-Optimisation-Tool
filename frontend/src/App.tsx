@@ -11,6 +11,7 @@ import CalculatorPage from "./pages/CalculatorPage";
 import RecommendationPage from "./pages/RecommendationPage";
 import SpeciesPage from "./pages/SpeciesPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import LoginPage from "./pages/auth/LoginPage";
 
 // Export App
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
       <Providers>
         <BrowserRouter>
           <Routes>
+            <Route path="/login" element={<LoginPage />} />
             <Route element={<MainLayout />}>
               <Route path="/" index element={<HomePage />} />
               <Route path="/profile" element={<ProfilePage />} />
