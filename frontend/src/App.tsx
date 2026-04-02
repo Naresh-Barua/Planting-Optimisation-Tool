@@ -15,6 +15,7 @@ import AdminLayout from "./components/layout/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminLogs from "./pages/admin/AdminLogs";
+import RequireRole from "./components/auth/RequireRole";
 
 // Export App
 export default function App() {
@@ -32,7 +33,14 @@ export default function App() {
               <Route path="*" element={<NotFoundPage />} />
             </Route>
 
-            <Route path="/admin" element={<AdminLayout />}>
+            <Route
+              path="/admin"
+              element={
+                <RequireRole allowedRoles={["admin", "supervisor"]}>
+                  <AdminLayout />
+                </RequireRole>
+              }
+            >
               <Route index element={<AdminDashboard />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="logs" element={<AdminLogs />} />
