@@ -38,7 +38,7 @@ export default function App() {
             <Route
               path="/admin"
               element={
-                <RequireRole allowedRoles={["admin", "supervisor"]}>
+                <RequireRole allowedRoles={["admin"]}>
                   <AdminLayout />
                 </RequireRole>
               }

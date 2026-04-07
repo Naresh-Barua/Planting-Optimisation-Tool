@@ -1055,7 +1055,6 @@ main.container {
   background: var(--gradient-dark);
 }
 
-
 /* ============ LOGIN PAGE LAYOUT ============ */
 
 .login-page {
@@ -1202,8 +1201,8 @@ main.container {
 .login-form-meta {
   align-items: center;
   display: flex;
-  justify-content: space-between;
   gap: 16px;
+  justify-content: space-between;
 }
 
 .login-checkbox-row {
@@ -1250,6 +1249,12 @@ main.container {
   background: var(--surface);
   border: 1px solid var(--border);
   color: var(--muted);
+}
+
+.login-message-error {
+  background: #fdecea;
+  border: 1px solid #f5c2c0;
+  color: #b42318;
 }
 
 /* ============ LOGIN SUBMIT BUTTON ============ */
@@ -1300,10 +1305,10 @@ main.container {
 /* ============ LOGIN BUTTON DISABLED STATE ============ */
 
 .login-submit-btn:disabled {
+  box-shadow: none;
   cursor: not-allowed;
   opacity: 0.6;
   transform: none;
-  box-shadow: none;
 }
 /* ============ LOGIN MOBILE IMPROVEMENTS ============ */
 
@@ -1450,7 +1455,27 @@ main.container {
 }
 
 .admin-header-right {
+  align-items: center;
   color: #333;
+  display: flex;
   font-size: 0.9rem;
   font-weight: 500;
+  gap: 12px;
+}
+
+/* Admin logout button */
+.admin-logout-btn {
+  background: #102a43;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 10px 14px;
+  transition: background 0.2s ease;
+}
+
+.admin-logout-btn:hover {
+  background: #0b1f33;
 }

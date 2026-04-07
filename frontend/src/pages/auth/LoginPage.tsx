@@ -1,8 +1,12 @@
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import { useState } from "react";
+import { useAuth } from "../../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 function LoginPage() {
+  const { login, isLoading } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -10,14 +14,15 @@ function LoginPage() {
     email: false,
     password: false,
   });
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const emailError =
-    touched.email && !email.trim() ? "Email is required." : "";
+  const emailError = touched.email && !email.trim() ? "Email is required." : "";
   const passwordError =
     touched.password && !password.trim() ? "Password is required." : "";
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setErrorMessage("");
 
     setTouched({
       email: true,
@@ -28,8 +33,19 @@ function LoginPage() {
       return;
     }
 
-    // Backend integration will be added later
-    console.log("Login UI submitted:", { email, password });
+    try {
+      await login({ email, password });
+
+      // Redirect after successful login
+      navigate("/admin");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Login failed. Please try again.";
+      setErrorMessage(message);
+      console.error("Login failed:", error);
+    }
   };
 
   const isDisabled = !email.trim() || !password.trim();
@@ -59,9 +75,9 @@ function LoginPage() {
                 className={`login-input ${emailError ? "login-input-error" : ""}`}
                 placeholder="Enter your email"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={event => setEmail(event.target.value)}
                 onBlur={() =>
-                  setTouched((previous) => ({
+                  setTouched(previous => ({
                     ...previous,
                     email: true,
                   }))
@@ -82,9 +98,9 @@ function LoginPage() {
                   className={`login-input login-password-input ${passwordError ? "login-input-error" : ""}`}
                   placeholder="Enter your password"
                   value={password}
-                  onChange={(event) => setPassword(event.target.value)}
+                  onChange={event => setPassword(event.target.value)}
                   onBlur={() =>
-                    setTouched((previous) => ({
+                    setTouched(previous => ({
                       ...previous,
                       password: true,
                     }))
@@ -94,10 +110,8 @@ function LoginPage() {
                 <button
                   type="button"
                   className="login-password-toggle"
-                  onClick={() => setShowPassword((previous) => !previous)}
-                  aria-label={
-                    showPassword ? "Hide password" : "Show password"
-                  }
+                  onClick={() => setShowPassword(previous => !previous)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? "Hide" : "Show"}
                 </button>
@@ -119,12 +133,23 @@ function LoginPage() {
               </Link>
             </div>
 
-            <div className="login-message login-message-placeholder">
-              Authentication will be connected in the next step.
-            </div>
+            {errorMessage ? (
+              <div className="login-message login-message-error">
+                {errorMessage}
+              </div>
+            ) : (
+              <div className="login-message login-message-placeholder">
+                Sign in with your verified account to access the admin
+                workspace.
+              </div>
+            )}
 
-            <button type="submit" className="login-submit-btn" disabled={isDisabled}>
-                Sign in
+            <button
+              type="submit"
+              className="login-submit-btn"
+              disabled={isLoading || isDisabled}
+            >
+              {isLoading ? "Signing in..." : "Sign in"}
             </button>
           </form>
         </section>
