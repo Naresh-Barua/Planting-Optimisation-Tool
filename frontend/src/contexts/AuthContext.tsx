@@ -7,7 +7,7 @@ import {
   ReactNode,
 } from "react";
 // API base URL (adjust if needed)
-const API_BASE = "http://127.0.0.1:8080";
+const API_BASE = import.meta.env.VITE_API_URL;
 
 // Create interface for User that maps to User model in backend, excluding password
 interface User {

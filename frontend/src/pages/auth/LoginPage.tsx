@@ -1,5 +1,4 @@
 import { Helmet } from "react-helmet-async";
-import { Link } from "react-router-dom";
 import { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -120,17 +119,6 @@ function LoginPage() {
               {passwordError ? (
                 <p className="login-field-error">{passwordError}</p>
               ) : null}
-            </div>
-
-            <div className="login-form-meta">
-              <label className="login-checkbox-row">
-                <input type="checkbox" />
-                <span>Remember me</span>
-              </label>
-
-              <Link to="/forgot-password" className="login-link">
-                Forgot password?
-              </Link>
             </div>
 
             {errorMessage ? (
