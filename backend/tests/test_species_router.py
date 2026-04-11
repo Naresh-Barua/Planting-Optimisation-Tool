@@ -148,3 +148,54 @@ async def test_delete_species_by_officer_fails(
 
     response = await async_client.delete(f"/species/{species_id}", headers=officer_auth_headers)
     assert response.status_code == 403
+
+async def test_update_species_not_found(
+    async_client: AsyncClient,
+    admin_auth_headers: dict,
+):
+    response = await async_client.put(
+        "/species/99999",
+        json={"common_name": "Ghost"},
+        headers=admin_auth_headers,
+    )
+    assert response.status_code == 404
+
+async def test_delete_species_not_found(
+    async_client: AsyncClient,
+    admin_auth_headers: dict,
+):
+    response = await async_client.delete(
+        "/species/99999",
+        headers=admin_auth_headers,
+    )
+    assert response.status_code == 404
+
+async def test_update_species_partial_fields(
+    async_client: AsyncClient,
+    admin_auth_headers: dict,
+):
+    create = await async_client.post("/species", json=VALID_SPECIES_PAYLOAD, headers=admin_auth_headers)
+    species = create.json()
+
+    response = await async_client.put(
+        f"/species/{species['id']}",
+        json={"ph_min": 6.0},
+        headers=admin_auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert float(data["ph_min"]) == 6.0
+
+async def test_delete_species_removes_record(
+    async_client: AsyncClient,
+    admin_auth_headers: dict,
+):
+    create = await async_client.post("/species", json=VALID_SPECIES_PAYLOAD, headers=admin_auth_headers)
+    species_id = create.json()["id"]
+
+    await async_client.delete(f"/species/{species_id}", headers=admin_auth_headers)
+
+    # Try deleting again → should be 404
+    response = await async_client.delete(f"/species/{species_id}", headers=admin_auth_headers)
+    assert response.status_code == 404
