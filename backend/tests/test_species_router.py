@@ -149,6 +149,7 @@ async def test_delete_species_by_officer_fails(
     response = await async_client.delete(f"/species/{species_id}", headers=officer_auth_headers)
     assert response.status_code == 403
 
+
 async def test_update_species_not_found(
     async_client: AsyncClient,
     admin_auth_headers: dict,
@@ -160,6 +161,7 @@ async def test_update_species_not_found(
     )
     assert response.status_code == 404
 
+
 async def test_delete_species_not_found(
     async_client: AsyncClient,
     admin_auth_headers: dict,
@@ -169,6 +171,7 @@ async def test_delete_species_not_found(
         headers=admin_auth_headers,
     )
     assert response.status_code == 404
+
 
 async def test_update_species_partial_fields(
     async_client: AsyncClient,
@@ -186,6 +189,7 @@ async def test_update_species_partial_fields(
     assert response.status_code == 200
     data = response.json()
     assert float(data["ph_min"]) == 6.0
+
 
 async def test_delete_species_removes_record(
     async_client: AsyncClient,
