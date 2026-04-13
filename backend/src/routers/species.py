@@ -1,10 +1,10 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db_session
-from src.dependencies import require_role
+from src.dependencies import limiter, require_role
 from src.schemas.species import SpeciesCreate, SpeciesDropdownRead, SpeciesRead, SpeciesUpdate
 from src.schemas.user import Role, UserRead
 from src.services import species as species_service
@@ -13,8 +13,10 @@ from src.services.species import get_recommendation_features, get_species_for_dr
 router = APIRouter(prefix="/species", tags=["Species"])
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=SpeciesRead, status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/minute")
 async def create_species(
+    request: Request,
     payload: SpeciesCreate,
     db: AsyncSession = Depends(get_db_session),
     current_user: UserRead = Depends(require_role(Role.ADMIN)),
@@ -26,7 +28,9 @@ async def create_species(
 
 
 @router.put("/{species_id}", response_model=SpeciesRead)
+@limiter.limit("10/minute")
 async def update_species(
+    request: Request,
     species_id: int,
     payload: SpeciesUpdate,
     db: AsyncSession = Depends(get_db_session),
@@ -47,7 +51,9 @@ async def update_species(
 
 
 @router.delete("/{species_id}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("10/minute")
 async def delete_species(
+    request: Request,
     species_id: int,
     db: AsyncSession = Depends(get_db_session),
     current_user: UserRead = Depends(require_role(Role.ADMIN)),
