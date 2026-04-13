@@ -108,8 +108,8 @@ async def update_species(db: AsyncSession, species_id: int, payload: SpeciesUpda
 
     await db.commit()
 
-    refreshed = await db.execute(select(Species).where(Species.id == species_id).options(selectinload(Species.soil_textures), selectinload(Species.agroforestry_types)))
-    return refreshed.scalar_one()
+    await db.refresh(species)
+    return species
 
 
 async def delete_species(db: AsyncSession, species_id: int) -> bool:
