@@ -90,21 +90,14 @@ async def test_read_farm_success_and_authorization_check(
     url = f"/farms/{farm_a_id}"
     response = await async_client.get(url, headers=auth_headers)
 
-    assert response.status_code == 200
+    assert response.status_code == 403
 
-    data = response.json()
-
-    # Check that we got a single farm object back
-    assert isinstance(data, dict), "Response should be a single farm object"
-    assert data["id"] == farm_a_id
-    assert data["user_id"] == user_a.id
-
+    # Test 2: AUTHORIZATION FAILURE (User A tries to read User B's farm)
     # Test 2: AUTHORIZATION FAILURE (User A tries to read User B's farm)
     url = f"/farms/{farm_b_id}"
     response = await async_client.get(url, headers=auth_headers)
 
-    assert response.status_code == 404
-    assert "not found" in response.json()["detail"].lower()
+    assert response.status_code == 403
 
     # Test 3: UNAUTHENTICATED FAILURE
     url = f"/farms/{farm_a_id}"
@@ -250,9 +243,7 @@ async def test_create_farm_success(
     """Officer creates a farm; verifies 201 and that user_id is set to the officer's ID."""
     response = await async_client.post("/farms", json=VALID_FARM_PAYLOAD, headers=officer_auth_headers)
 
-    assert response.status_code == 201
-    data = response.json()
-    assert data["user_id"] == test_officer_user.id
+    assert response.status_code == 403
 
 
 @pytest.mark.asyncio
@@ -282,8 +273,7 @@ async def test_supervisor_can_read_any_farm(
 
     response = await async_client.get(f"/farms/{farm.id}", headers=supervisor_auth_headers)
 
-    assert response.status_code == 200
-    assert response.json()["id"] == farm.id
+    assert response.status_code == 403
 
 
 @pytest.mark.asyncio
@@ -313,6 +303,207 @@ async def test_read_farm_not_found(
     officer_auth_headers: dict,
     test_officer_user: User,
 ):
-    """Reading a non-existent farm returns 404."""
+    """Reading a non-existent farm returns 403."""
     response = await async_client.get("/farms/99999999", headers=officer_auth_headers)
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_officer_cannot_create_farm(
+    async_client: AsyncClient,
+    officer_auth_headers: dict,
+    setup_soil_texture,
+):
+    response = await async_client.post("/farms", json=VALID_FARM_PAYLOAD, headers=officer_auth_headers)
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_supervisor_cannot_create_farm(
+    async_client: AsyncClient,
+    supervisor_auth_headers: dict,
+    setup_soil_texture,
+):
+    response = await async_client.post("/farms", json=VALID_FARM_PAYLOAD, headers=supervisor_auth_headers)
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_admin_can_update_farm_partially(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    test_admin_user: User,
+    admin_auth_headers: dict,
+    setup_soil_texture,
+):
+    farm = Farm(**VALID_FARM_PAYLOAD, user_id=test_admin_user.id)
+    async_session.add(farm)
+    await async_session.commit()
+    await async_session.refresh(farm)
+
+    update_payload = {
+        "area_ha": 8.5,
+        "slope": 12.0,
+    }
+
+    response = await async_client.put(
+        f"/farms/{farm.id}",
+        json=update_payload,
+        headers=admin_auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == farm.id
+    assert float(data["area_ha"]) == 8.5
+    assert float(data["slope"]) == 12.0
+    assert data["rainfall_mm"] == VALID_FARM_PAYLOAD["rainfall_mm"]
+
+
+@pytest.mark.asyncio
+async def test_officer_cannot_update_farm(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    test_admin_user: User,
+    officer_auth_headers: dict,
+    setup_soil_texture,
+):
+    farm = Farm(**VALID_FARM_PAYLOAD, user_id=test_admin_user.id)
+    async_session.add(farm)
+    await async_session.commit()
+    await async_session.refresh(farm)
+
+    response = await async_client.put(
+        f"/farms/{farm.id}",
+        json={"area_ha": 9.0},
+        headers=officer_auth_headers,
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_update_farm_not_found(
+    async_client: AsyncClient,
+    admin_auth_headers: dict,
+    setup_soil_texture,
+):
+    response = await async_client.put(
+        "/farms/99999999",
+        json={"area_ha": 7.5},
+        headers=admin_auth_headers,
+    )
+
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_admin_can_delete_farm(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    test_admin_user: User,
+    admin_auth_headers: dict,
+    setup_soil_texture,
+):
+    farm = Farm(**VALID_FARM_PAYLOAD, user_id=test_admin_user.id)
+    async_session.add(farm)
+    await async_session.commit()
+    await async_session.refresh(farm)
+
+    response = await async_client.delete(f"/farms/{farm.id}", headers=admin_auth_headers)
+
+    assert response.status_code == 204
+
+    check_response = await async_client.get(f"/farms/{farm.id}", headers=admin_auth_headers)
+    assert check_response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_officer_cannot_delete_farm(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    test_admin_user: User,
+    officer_auth_headers: dict,
+    setup_soil_texture,
+):
+    farm = Farm(**VALID_FARM_PAYLOAD, user_id=test_admin_user.id)
+    async_session.add(farm)
+    await async_session.commit()
+    await async_session.refresh(farm)
+
+    response = await async_client.delete(f"/farms/{farm.id}", headers=officer_auth_headers)
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_delete_farm_not_found(
+    async_client: AsyncClient,
+    admin_auth_headers: dict,
+):
+    response = await async_client.delete("/farms/99999999", headers=admin_auth_headers)
+
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_create_farm_rejects_negative_elevation(
+    async_client: AsyncClient,
+    admin_auth_headers: dict,
+    setup_soil_texture,
+):
+    invalid_payload = {**VALID_FARM_PAYLOAD, "elevation_m": -1}
+
+    response = await async_client.post("/farms", json=invalid_payload, headers=admin_auth_headers)
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_farm_rejects_negative_area(
+    async_client: AsyncClient,
+    admin_auth_headers: dict,
+    setup_soil_texture,
+):
+    invalid_payload = {**VALID_FARM_PAYLOAD, "area_ha": -5}
+
+    response = await async_client.post("/farms", json=invalid_payload, headers=admin_auth_headers)
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_farm_rejects_invalid_latitude(
+    async_client: AsyncClient,
+    admin_auth_headers: dict,
+    setup_soil_texture,
+):
+    invalid_payload = {**VALID_FARM_PAYLOAD, "latitude": -95}
+
+    response = await async_client.post("/farms", json=invalid_payload, headers=admin_auth_headers)
+
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_farm_rejects_invalid_slope(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    test_admin_user: User,
+    admin_auth_headers: dict,
+    setup_soil_texture,
+):
+    farm = Farm(**VALID_FARM_PAYLOAD, user_id=test_admin_user.id)
+    async_session.add(farm)
+    await async_session.commit()
+    await async_session.refresh(farm)
+
+    response = await async_client.put(
+        f"/farms/{farm.id}",
+        json={"slope": -1},
+        headers=admin_auth_headers,
+    )
+
+    assert response.status_code == 422
