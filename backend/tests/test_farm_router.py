@@ -93,7 +93,6 @@ async def test_read_farm_success_and_authorization_check(
     assert response.status_code == 403
 
     # Test 2: AUTHORIZATION FAILURE (User A tries to read User B's farm)
-    # Test 2: AUTHORIZATION FAILURE (User A tries to read User B's farm)
     url = f"/farms/{farm_b_id}"
     response = await async_client.get(url, headers=auth_headers)
 
@@ -328,6 +327,87 @@ async def test_supervisor_cannot_create_farm(
     response = await async_client.post("/farms", json=VALID_FARM_PAYLOAD, headers=supervisor_auth_headers)
 
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_admin_can_create_farm_success(
+    async_client: AsyncClient,
+    test_admin_user: User,
+    admin_auth_headers: dict,
+    setup_soil_texture,
+):
+    response = await async_client.post("/farms", json=VALID_FARM_PAYLOAD, headers=admin_auth_headers)
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["user_id"] == test_admin_user.id
+    assert data["rainfall_mm"] == VALID_FARM_PAYLOAD["rainfall_mm"]
+
+
+@pytest.mark.asyncio
+async def test_admin_can_update_farm_lat_long_and_recompute_riparian(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    test_admin_user: User,
+    admin_auth_headers: dict,
+    setup_soil_texture,
+    monkeypatch,
+):
+    import src.routers.farm as farm_router
+
+    async def fake_get_riparian_flags(db, latitude, longitude):
+        assert latitude == -8.6
+        assert longitude == 126.6
+        return {"riparian": True}
+
+    monkeypatch.setattr(farm_router, "get_riparian_flags", fake_get_riparian_flags)
+
+    farm = Farm(**VALID_FARM_PAYLOAD, user_id=test_admin_user.id)
+    async_session.add(farm)
+    await async_session.commit()
+    await async_session.refresh(farm)
+
+    update_payload = {
+        "latitude": -8.6,
+        "longitude": 126.6,
+    }
+
+    response = await async_client.put(
+        f"/farms/{farm.id}",
+        json=update_payload,
+        headers=admin_auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert float(data["latitude"]) == -8.6
+    assert float(data["longitude"]) == 126.6
+    assert data["riparian"] is True
+
+
+@pytest.mark.asyncio
+async def test_admin_can_update_farm_with_empty_agroforestry_ids(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    test_admin_user: User,
+    admin_auth_headers: dict,
+    setup_soil_texture,
+):
+    farm = Farm(**VALID_FARM_PAYLOAD, user_id=test_admin_user.id)
+    async_session.add(farm)
+    await async_session.commit()
+    await async_session.refresh(farm)
+
+    response = await async_client.put(
+        f"/farms/{farm.id}",
+        json={"agroforestry_type_ids": []},
+        headers=admin_auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == farm.id
+    assert data["agroforestry_type"] == []
 
 
 @pytest.mark.asyncio
