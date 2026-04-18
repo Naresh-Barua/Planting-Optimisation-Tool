@@ -90,13 +90,14 @@ async def test_read_farm_success_and_authorization_check(
     url = f"/farms/{farm_a_id}"
     response = await async_client.get(url, headers=auth_headers)
 
-    assert response.status_code == 403
+    assert response.status_code == 200
 
     # Test 2: AUTHORIZATION FAILURE (User A tries to read User B's farm)
     url = f"/farms/{farm_b_id}"
     response = await async_client.get(url, headers=auth_headers)
 
-    assert response.status_code == 403
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"].lower()
 
     # Test 3: UNAUTHENTICATED FAILURE
     url = f"/farms/{farm_a_id}"
@@ -272,7 +273,8 @@ async def test_supervisor_can_read_any_farm(
 
     response = await async_client.get(f"/farms/{farm.id}", headers=supervisor_auth_headers)
 
-    assert response.status_code == 403
+    assert response.status_code == 200
+    assert response.json()["id"] == farm.id
 
 
 @pytest.mark.asyncio
@@ -304,7 +306,7 @@ async def test_read_farm_not_found(
 ):
     """Reading a non-existent farm returns 403."""
     response = await async_client.get("/farms/99999999", headers=officer_auth_headers)
-    assert response.status_code == 403
+    assert response.status_code == 404
 
 
 @pytest.mark.asyncio

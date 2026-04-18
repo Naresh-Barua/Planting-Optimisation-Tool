@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db_session
-from src.dependencies import require_role
+from src.dependencies import get_current_user, require_role
 from src.schemas.farm import FarmCreate, FarmRead, FarmUpdate
 from src.schemas.user import Role, UserRead
 from src.services import farm as farm_service
@@ -40,13 +40,12 @@ async def create_farm(
 
 
 @router.get("/{farm_id}", response_model=FarmRead)
-async def read_farm(
-    farm_id: int,
-    db: AsyncSession = Depends(get_db_session),
-    current_user: UserRead = Depends(require_role(Role.ADMIN)),
-):
+async def read_farm(farm_id: int, db: AsyncSession = Depends(get_db_session), current_user: UserRead = Depends(get_current_user)):
     """Retrieves a farm by ID.
-    Requires ADMIN role.
+
+    ADMIN: can read any farm
+    SUPERVISOR: can read any farm
+    OFFICER: can read only their own farm
     """
     farms = await farm_service.get_farm_by_id(db, farm_ids=[farm_id])
 
@@ -56,7 +55,20 @@ async def read_farm(
             detail=f"Farm with ID {farm_id} not found.",
         )
 
-    return farms[0]
+    farm = farms[0]
+
+    # ADMIN & SUPERVISOR → allowed
+    if current_user.role in [Role.ADMIN, Role.SUPERVISOR]:
+        return farm
+
+    # OFFICER → only own farm
+    if current_user.role == Role.OFFICER:
+        if farm.user_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Farm not found.")
+        return farm
+
+    # fallback (safety)
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized.")
 
 
 @router.put("/{farm_id}", response_model=FarmRead)
