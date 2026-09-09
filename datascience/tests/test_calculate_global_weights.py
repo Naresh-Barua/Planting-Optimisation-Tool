@@ -10,9 +10,7 @@ def test_bootstrap_skips_zero_coefficient_model_and_continues(monkeypatch):
         calls["count"] += 1
 
         if calls["count"] == 1:
-            raise ValueError(
-                "Elastic Net importance sum is zero. Coefficients are all null."
-            )
+            raise ValueError("Elastic Net importance sum is zero. Coefficients are all null.")
 
         return pd.Series(
             [0.6, 0.4],
