@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from scripts import calculate_global_weights as cgw
 
@@ -46,3 +47,34 @@ def test_bootstrap_skips_zero_coefficient_model_and_continues(monkeypatch):
     assert calls["count"] == 2
     assert len(boot) == 1
     assert early_stop is False
+
+
+def test_bootstrap_reraises_unrelated_elastic_net_value_error(monkeypatch):
+    def fake_fit_elastic_net_weights(df, config):
+        raise ValueError("Some unrelated Elastic Net error")
+
+    monkeypatch.setattr(
+        cgw,
+        "fit_elastic_net_weights",
+        fake_fit_elastic_net_weights,
+    )
+
+    df = pd.DataFrame(
+        {
+            "farm_id": [1, 2],
+            "env_1": [0.1, 0.2],
+            "env_2": [0.2, 0.1],
+        }
+    )
+
+    config = cgw.MCDAConfig(
+        env_cols=["env_1", "env_2"],
+    )
+
+    with pytest.raises(ValueError, match="Some unrelated Elastic Net error"):
+        cgw.bootstrap_global_weights_early_stop(
+            df,
+            config,
+            method="elastic_net",
+            max_boot=1,
+        )

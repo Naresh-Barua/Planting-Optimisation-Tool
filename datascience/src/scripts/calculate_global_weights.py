@@ -242,19 +242,19 @@ def bootstrap_global_weights_early_stop(
         boot_df = pd.concat(df[df[config.farm_col] == f] for f in sampled_farms).reset_index(drop=True)
 
         # === choose estimator ===
-        try:
-            if method == "elastic_net":
+        if method == "elastic_net":
+            try:
                 w = fit_elastic_net_weights(boot_df, config)
-            elif method == "rf":
-                w = fit_rf_weights(boot_df, config, clip_tracker=clip_tracker)
-            elif method == "combined":
-                w = fit_combined_weights(boot_df, config, clip_tracker=clip_tracker)
-            else:
-                raise ValueError("method must be 'elastic_net', 'rf', or 'combined'")
-        except ValueError as exc:
-            if str(exc) == "Elastic Net importance sum is zero. Coefficients are all null.":
-                continue
-            raise
+            except ValueError as exc:
+                if str(exc) == "Elastic Net importance sum is zero. Coefficients are all null.":
+                    continue
+                raise
+        elif method == "rf":
+            w = fit_rf_weights(boot_df, config, clip_tracker=clip_tracker)
+        elif method == "combined":
+            w = fit_combined_weights(boot_df, config, clip_tracker=clip_tracker)
+        else:
+            raise ValueError("method must be 'elastic_net', 'rf', or 'combined'")
 
         weights.append(w)
 
