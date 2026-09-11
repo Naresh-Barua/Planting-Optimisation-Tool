@@ -41,6 +41,7 @@ dependencies = [
     "locust>=2.32.0",
     "pillow>=12.2.0",
     "staticmap==0.5.7",
+    "pypdf>=6.17.0",
 ]
 
 [tool.pytest.ini_options]
