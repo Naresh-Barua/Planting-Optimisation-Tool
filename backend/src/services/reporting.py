@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 from src.domains.reporting import FarmReportContract, FarmReportMetadata, RecommendationReportEntry, SaplingReportSummary
 from src.models.farm import Farm
 from src.models.recommendations import Recommendation
+from src.models.user import User
 from src.services import farm as farm_service
 from src.services.sapling_estimation import SaplingEstimationService
 
@@ -24,9 +25,9 @@ async def get_farm_report(db: AsyncSession, farm_id: int, user_id: int | None = 
     """Retrieves a farm and its saved recommendations by farm_id.
     Returns None if the farm does not exist or the user does not have access.
     """
-    stmt = select(Farm).options(selectinload(Farm.soil_texture), selectinload(Farm.farm_supervisor)).where(Farm.id == farm_id)
+    stmt = select(Farm).options(selectinload(Farm.soil_texture), selectinload(Farm.owners)).where(Farm.id == farm_id)
     if user_id is not None:
-        stmt = stmt.where(Farm.user_id == user_id)
+        stmt = stmt.where(Farm.owners.any(User.id == user_id))
     farm_result = await db.execute(stmt)
     farm = farm_result.scalar_one_or_none()
 
@@ -52,12 +53,12 @@ async def get_farm_report(db: AsyncSession, farm_id: int, user_id: int | None = 
 
 async def get_all_farms_report(db: AsyncSession, user_id: int | None = None) -> list[FarmReportContract]:
     """Retrieves all farms and their saved recommendations.
-    If user_id is provided, only farms belonging to that user are included.
+    If user_id is provided, only farms owned by that user are included.
     """
-    farm_stmt = select(Farm).options(selectinload(Farm.soil_texture), selectinload(Farm.farm_supervisor))
+    farm_stmt = select(Farm).options(selectinload(Farm.soil_texture), selectinload(Farm.owners))
     # Admins see all farms, supervisors see only their own
     if user_id is not None:
-        farm_stmt = farm_stmt.where(Farm.user_id == user_id)
+        farm_stmt = farm_stmt.where(Farm.owners.any(User.id == user_id))
 
     farm_result = await db.execute(farm_stmt)
     farms = list(farm_result.scalars().all())
@@ -77,6 +78,16 @@ async def get_all_farms_report(db: AsyncSession, user_id: int | None = None) -> 
     return reports
 
 
+def _owner_names(farm: Farm) -> str:
+    """Renders a farm's owner(s) as a single display string for reports.
+    Joins multiple owner names with a comma; falls back to a placeholder
+    if the farm currently has no owners.
+    """
+    if not farm.owners:
+        return "Unassigned"
+    return ", ".join(owner.name for owner in farm.owners)
+
+
 def _assemble_report(farm: Farm, recommendations: list[Recommendation], exclusions: list[Recommendation]) -> FarmReportContract:
     """Builds the base report contract from farm and recommendation data.
 
@@ -88,7 +99,7 @@ def _assemble_report(farm: Farm, recommendations: list[Recommendation], exclusio
     """
     farm_metadata = FarmReportMetadata(
         id=farm.id,
-        user_name=farm.farm_supervisor.name,
+        user_name=_owner_names(farm),
         rainfall_mm=farm.rainfall_mm,
         temperature_celsius=farm.temperature_celsius,
         elevation_m=farm.elevation_m,

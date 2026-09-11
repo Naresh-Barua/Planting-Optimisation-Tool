@@ -34,8 +34,8 @@ DEM_INSERT = text(
 FARM_BOUNDARY_WKT_IN_DEM_EXTENT = "MULTIPOLYGON (((125 -9, 125 -9.002, 125.002 -9.002, 125.002 -9, 125 -9)))"
 
 
-def make_farm(user_id: int, soil_texture_id: int = 1) -> Farm:
-    return Farm(
+def make_farm(owner: User, soil_texture_id: int = 1) -> Farm:
+    farm = Farm(
         rainfall_mm=1500,
         temperature_celsius=22,
         elevation_m=500,
@@ -50,8 +50,9 @@ def make_farm(user_id: int, soil_texture_id: int = 1) -> Farm:
         shade_tolerant=False,
         bank_stabilising=False,
         slope=10.5,
-        user_id=user_id,
     )
+    farm.owners = [owner]
+    return farm
 
 
 def make_species(name: str, common_name: str) -> Species:
@@ -82,7 +83,7 @@ async def test_get_farm_report_success(
     test_officer_user: User,
 ):
     """Officer can retrieve a report for their own farm."""
-    farm = make_farm(user_id=test_officer_user.id)
+    farm = make_farm(owner=test_officer_user)
     async_session.add(farm)
     await async_session.flush()
     await async_session.refresh(farm)
@@ -137,7 +138,7 @@ async def test_get_farm_report_excludes_excluded_species(
     test_officer_user: User,
 ):
     """Report should not include species with rank=-1 (excluded species)."""
-    farm = make_farm(user_id=test_officer_user.id)
+    farm = make_farm(owner=test_officer_user)
     async_session.add(farm)
     await async_session.flush()
     await async_session.refresh(farm)
@@ -182,8 +183,8 @@ async def test_get_all_farms_report_supervisor(
     test_supervisor_user: User,
 ):
     """Supervisor can retrieve reports for all their farms."""
-    farm1 = make_farm(user_id=test_supervisor_user.id)
-    farm2 = make_farm(user_id=test_supervisor_user.id)
+    farm1 = make_farm(owner=test_supervisor_user)
+    farm2 = make_farm(owner=test_supervisor_user)
     async_session.add_all([farm1, farm2])
     await async_session.flush()
     await async_session.refresh(farm1)
@@ -215,7 +216,7 @@ async def test_export_farm_report_docx_success(
     test_officer_user: User,
 ):
     """Officer can download a DOCX report for their own farm."""
-    farm = make_farm(user_id=test_officer_user.id)
+    farm = make_farm(owner=test_officer_user)
     async_session.add(farm)
     await async_session.flush()
     await async_session.refresh(farm)
@@ -236,7 +237,7 @@ async def test_export_farm_report_pdf_success(
     test_officer_user: User,
 ):
     """Officer can download a PDF report for their own farm."""
-    farm = make_farm(user_id=test_officer_user.id)
+    farm = make_farm(owner=test_officer_user)
     async_session.add(farm)
     await async_session.flush()
     await async_session.refresh(farm)
@@ -275,7 +276,7 @@ async def test_export_farm_report_docx_officer_forbidden_other_farm(
     test_supervisor_user: User,
 ):
     """Officer cannot download DOCX report for a farm they do not own."""
-    farm = make_farm(user_id=test_supervisor_user.id)
+    farm = make_farm(owner=test_supervisor_user)
     async_session.add(farm)
     await async_session.flush()
     await async_session.refresh(farm)
@@ -292,7 +293,7 @@ async def test_export_farm_report_pdf_officer_forbidden_other_farm(
     test_supervisor_user: User,
 ):
     """Officer cannot download PDF report for a farm they do not own."""
-    farm = make_farm(user_id=test_supervisor_user.id)
+    farm = make_farm(owner=test_supervisor_user)
     async_session.add(farm)
     await async_session.flush()
     await async_session.refresh(farm)
@@ -318,8 +319,8 @@ async def test_get_all_farms_report_admin_sees_all(
     test_supervisor_user: User,
 ):
     """Admin can retrieve reports for all farms regardless of owner."""
-    farm_officer = make_farm(user_id=test_officer_user.id)
-    farm_supervisor = make_farm(user_id=test_supervisor_user.id)
+    farm_officer = make_farm(owner=test_officer_user)
+    farm_supervisor = make_farm(owner=test_supervisor_user)
     async_session.add_all([farm_officer, farm_supervisor])
     await async_session.flush()
     await async_session.refresh(farm_officer)
@@ -342,8 +343,8 @@ async def test_export_all_farms_report_docx_supervisor(
     test_supervisor_user: User,
 ):
     """Supervisor can download a single DOCX containing all their farms."""
-    farm1 = make_farm(user_id=test_supervisor_user.id)
-    farm2 = make_farm(user_id=test_supervisor_user.id)
+    farm1 = make_farm(owner=test_supervisor_user)
+    farm2 = make_farm(owner=test_supervisor_user)
     async_session.add_all([farm1, farm2])
     await async_session.flush()
 
@@ -363,8 +364,8 @@ async def test_export_all_farms_report_pdf_supervisor(
     test_supervisor_user: User,
 ):
     """Supervisor can download a single PDF containing all their farms."""
-    farm1 = make_farm(user_id=test_supervisor_user.id)
-    farm2 = make_farm(user_id=test_supervisor_user.id)
+    farm1 = make_farm(owner=test_supervisor_user)
+    farm2 = make_farm(owner=test_supervisor_user)
     async_session.add_all([farm1, farm2])
     await async_session.flush()
 
@@ -403,7 +404,7 @@ async def test_export_farm_report_docx_with_recommendations(
     test_officer_user: User,
 ):
     """DOCX export includes recommendations table when recommendations exist."""
-    farm = make_farm(user_id=test_officer_user.id)
+    farm = make_farm(owner=test_officer_user)
     async_session.add(farm)
     await async_session.flush()
     await async_session.refresh(farm)
@@ -437,7 +438,7 @@ async def test_export_farm_report_pdf_with_recommendations(
     test_officer_user: User,
 ):
     """PDF export includes recommendations table when recommendations exist."""
-    farm = make_farm(user_id=test_officer_user.id)
+    farm = make_farm(owner=test_officer_user)
     async_session.add(farm)
     await async_session.flush()
     await async_session.refresh(farm)
@@ -471,7 +472,7 @@ async def test_export_all_farms_report_docx_with_recommendations(
     test_supervisor_user: User,
 ):
     """All-farms DOCX export includes recommendations table when recommendations exist."""
-    farm = make_farm(user_id=test_supervisor_user.id)
+    farm = make_farm(owner=test_supervisor_user)
     async_session.add(farm)
     await async_session.flush()
     await async_session.refresh(farm)
@@ -505,7 +506,7 @@ async def test_export_all_farms_report_pdf_with_recommendations(
     test_supervisor_user: User,
 ):
     """All-farms PDF export includes recommendations table when recommendations exist."""
-    farm = make_farm(user_id=test_supervisor_user.id)
+    farm = make_farm(owner=test_supervisor_user)
     async_session.add(farm)
     await async_session.flush()
     await async_session.refresh(farm)
@@ -539,7 +540,7 @@ async def test_get_farm_report_officer_forbidden_other_farm(
     test_supervisor_user: User,
 ):
     """Officer cannot retrieve a report for a farm they do not own."""
-    farm = make_farm(user_id=test_supervisor_user.id)
+    farm = make_farm(owner=test_supervisor_user)
     async_session.add(farm)
     await async_session.flush()
     await async_session.refresh(farm)
@@ -556,7 +557,7 @@ async def test_get_farm_report_supervisor_access(
     test_supervisor_user: User,
 ):
     """Supervisor can access a single farm report."""
-    farm = make_farm(user_id=test_supervisor_user.id)
+    farm = make_farm(owner=test_supervisor_user)
     async_session.add(farm)
     await async_session.flush()
     await async_session.refresh(farm)
@@ -641,7 +642,7 @@ async def test_get_farm_report_has_no_boundary_or_sapling_when_farm_has_no_bound
     test_officer_user: User,
 ):
     """A farm with no saved boundary gets a report with boundary and sapling both null."""
-    farm = make_farm(user_id=test_officer_user.id)
+    farm = make_farm(owner=test_officer_user)
     async_session.add(farm)
     await async_session.flush()
 
@@ -662,7 +663,7 @@ async def test_get_farm_report_includes_boundary_when_farm_has_one(
     test_officer_user: User,
 ):
     """A farm with a saved boundary gets that boundary back as a GeoJSON Feature on the report."""
-    farm = make_farm(user_id=test_officer_user.id)
+    farm = make_farm(owner=test_officer_user)
     async_session.add(farm)
     await async_session.flush()
     await async_session.refresh(farm)
@@ -697,7 +698,7 @@ async def test_get_farm_report_includes_sapling_summary_and_guidance_when_dem_av
     await async_session.execute(DEM_INSERT)
     await async_session.flush()
 
-    farm = make_farm(user_id=test_officer_user.id)
+    farm = make_farm(owner=test_officer_user)
     farm.baseline_tree_count = 5
     async_session.add(farm)
     await async_session.flush()
@@ -754,7 +755,7 @@ async def test_get_all_farms_report_still_skips_boundary_and_sapling_for_a_farm_
     await async_session.execute(DEM_INSERT)
     await async_session.flush()
 
-    farm = make_farm(user_id=test_officer_user.id)
+    farm = make_farm(owner=test_officer_user)
     async_session.add(farm)
     await async_session.flush()
     await async_session.refresh(farm)
@@ -790,7 +791,7 @@ async def test_get_farm_report_guidance_omits_capacity_when_sapling_unavailable(
     await async_session.execute(text("TRUNCATE dem_table RESTART IDENTITY;"))
     await async_session.flush()
 
-    farm = make_farm(user_id=test_officer_user.id)
+    farm = make_farm(owner=test_officer_user)
     async_session.add(farm)
     await async_session.flush()
     await async_session.refresh(farm)
@@ -840,7 +841,7 @@ async def test_get_farm_report_guidance_omits_existing_trees_when_baseline_is_ze
     await async_session.execute(DEM_INSERT)
     await async_session.flush()
 
-    farm = make_farm(user_id=test_officer_user.id)
+    farm = make_farm(owner=test_officer_user)
     farm.baseline_tree_count = 0
     async_session.add(farm)
     await async_session.flush()
@@ -894,7 +895,7 @@ async def test_get_farm_report_does_not_modify_existing_planting_estimates(
     await async_session.execute(DEM_INSERT)
     await async_session.flush()
 
-    farm = make_farm(user_id=test_officer_user.id)
+    farm = make_farm(owner=test_officer_user)
     async_session.add(farm)
     await async_session.flush()
     await async_session.refresh(farm)
