@@ -129,6 +129,30 @@ describe("CompatibilityMatrixPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows an authentication toast when the token disappears before saving", async () => {
+    const user = userEvent.setup();
+
+    renderPage();
+
+    const checkbox = await screen.findByRole("checkbox", {
+      name: "Acacia mangium Coastal",
+    });
+
+    // Simulate the session expiring after the matrix has loaded.
+    authState.state.accessToken = null;
+
+    await user.click(checkbox);
+
+    expect(
+      screen.getByText(
+        "You must be logged in as admin to update the compatibility matrix."
+      )
+    ).toBeInTheDocument();
+
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(updateSpecies).not.toHaveBeenCalled();
+  });
+
   it("sorts species alphabetically", async () => {
     renderPage();
 
