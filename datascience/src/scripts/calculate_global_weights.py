@@ -252,7 +252,12 @@ def bootstrap_global_weights_early_stop(
         elif method == "rf":
             w = fit_rf_weights(boot_df, config, clip_tracker=clip_tracker)
         elif method == "combined":
-            w = fit_combined_weights(boot_df, config, clip_tracker=clip_tracker)
+            try:
+                w = fit_combined_weights(boot_df, config, clip_tracker=clip_tracker)
+            except ValueError as exc:
+                if str(exc) == "Elastic Net importance sum is zero. Coefficients are all null.":
+                    continue
+                raise
         else:
             raise ValueError("method must be 'elastic_net', 'rf', or 'combined'")
 
@@ -285,6 +290,10 @@ def bootstrap_global_weights_early_stop(
         last_mean_rank = curr_mean_rank
 
     print()  # Ensure the next output starts on a new line
+
+    if not weights:
+        raise ValueError("No valid bootstrap models were generated.")
+
     return pd.DataFrame(weights), early_stop, clip_tracker
 
 
